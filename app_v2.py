@@ -115,8 +115,8 @@ html, body,
     margin-bottom: 0.75rem;
 }
 .hero-title {
-    font-family: 'Playfair Display', serif !important;
-    font-size: clamp(1.75rem, 3vw, 2.6rem) !important;
+    font-family: 'Noto Sans KR', serif !important;
+    font-size: clamp(1.5rem, 3vw, 2.6rem) !important;
     font-weight: 600 !important;
     color: #ffffff !important;
     line-height: 1.25 !important;
@@ -246,7 +246,7 @@ html, body,
 /* ════ 섹션 헤더 ════ */
 .section-title {
     font-family: 'Playfair Display', serif;
-    font-size: 1rem;
+    font-size: 0.92rem;
     font-weight: 600;
     color: var(--ewha-dark);
     margin: 1.8rem 0 0.9rem 0;
@@ -377,7 +377,7 @@ html, body,
 /* ════ 사이드바 ════ */
 .sb-logo {
     font-family: 'Playfair Display', serif;
-    font-size: 1.18rem;
+    font-size: 1.05rem;
     color: #d4ede2 !important;
     font-weight: 600;
     margin: 1.2rem 0 0.3rem 0;
@@ -392,7 +392,7 @@ html, body,
 }
 .sb-section {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.62rem;
+    font-size: 0.68rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: #7aad95 !important;
@@ -788,7 +788,7 @@ def build_figure(G: nx.Graph) -> go.Figure | None:
         x, y = pos[n]
         node_x.append(x)
         node_y.append(y)
-        node_labels.append(n.split("\n")[0])
+        node_labels.append(n.replace("\n", "<br>"))
 
         freq = G.nodes[n]["freq"]
         node_sizes.append(freq_to_size(freq, freq_min, freq_max))
@@ -800,9 +800,6 @@ def build_figure(G: nx.Graph) -> go.Figure | None:
             f"연결 부작용: <b>{G.degree(n)}개</b>"
         )
 
-    # ── 라벨 겹침 방지 ──
-    # 기존처럼 markers+text를 같이 그리면 큰 노드 위에서 글자가 겹쳐 보입니다.
-    # 따라서 노드는 marker만 그리고, 라벨은 흰 배경 annotation으로 따로 배치합니다.
     label_pos = {}
     coords = np.array([pos[n] for n in G.nodes()])
     center = coords.mean(axis=0)
@@ -863,6 +860,8 @@ def build_figure(G: nx.Graph) -> go.Figure | None:
     node_trace = go.Scatter(
         x=node_x, y=node_y,
         mode="markers",
+        text=node_labels,
+        textposition="top center",
         hovertext=node_hover,
         hoverinfo="text",
         marker=dict(
@@ -1025,7 +1024,7 @@ def render_tab(records: list, top_n: int, min_weight: int, source_label: str = "
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.78rem;
         color: #1a6040;
-        font-weight: 600;
+        font-weight: 400;
         text-align: right;
     }
     .htbl .rank {
@@ -1089,7 +1088,7 @@ def render_tab(records: list, top_n: int, min_weight: int, source_label: str = "
             )
         return (
             f"<table class='htbl'><thead><tr>"
-            f"<th>#</th><th>부작용</th><th>상대적 영향력</th>"
+            f"<th>#</th><th>부작용</th><th>영향력</th>"
             f"</tr></thead><tbody>{rows}</tbody></table>"
         )
 
@@ -1098,7 +1097,7 @@ def render_tab(records: list, top_n: int, min_weight: int, source_label: str = "
         for i, row in freq_df.iterrows():
             rows += (
                 f"<tr><td class='rank'>{i}</td>"
-                f"<td>{row['부작용 (한/영)']}</td>"
+                f"<td>{row['부작용']}</td>"
                 f"<td class='num'>{int(row['실제 언급 수']):,}건</td>"
                 f"<td class='num'>{row['로그 보정 크기']:.2f}</td></tr>"
             )
@@ -1136,7 +1135,6 @@ def render_tab(records: list, top_n: int, min_weight: int, source_label: str = "
         )
 
     # ── 핵심 허브 TOP 10 ──
-    # 좁은 2단 비교 화면에서 표가 깨지지 않도록 강한 연결 표 바로 아래에 배치
     st.markdown("""
     <div style='display:flex;align-items:center;gap:10px;margin:1.2rem 0 0.8rem'>
       <span style='font-family:"Playfair Display",serif;font-size:0.95rem;font-weight:600;color:#002e1c;letter-spacing:0.01em'>
