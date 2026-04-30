@@ -847,7 +847,7 @@ def build_figure(G: nx.Graph) -> go.Figure | None:
         lx, ly = label_pos[n]
         label_annotations.append(dict(
             x=float(lx), y=float(ly),
-            text=n.split("\n")[0],
+            text=n.replace("\n", " / "),
             showarrow=False,
             font=dict(size=12, color="#002e1c", family="Noto Sans KR"),
             bgcolor="rgba(255,255,255,0.82)",
@@ -1103,7 +1103,7 @@ def render_tab(records: list, top_n: int, min_weight: int, source_label: str = "
             )
         return (
             f"<table class='htbl'><thead><tr>"
-            f"<th>#</th><th>부작용 (한 / 영)</th><th>실제 언급 수</th><th>로그 보정</th>"
+            f"<th>#</th><th>부작용</th><th>실제 언급 수</th><th>로그 보정</th>"
             f"</tr></thead><tbody>{rows}</tbody></table>"
         )
 
@@ -1169,8 +1169,8 @@ def render_tab(records: list, top_n: int, min_weight: int, source_label: str = "
       <span style='flex:1;height:1px;background:linear-gradient(90deg,#cce0d6,transparent)'></span>
     </div>
     """, unsafe_allow_html=True)
-    freq_df = pd.DataFrame(effect_freq.items(), columns=["부작용 (한/영)", "실제 언급 수"])
-    freq_df["부작용 (한/영)"] = freq_df["부작용 (한/영)"].apply(lambda x: x.replace("\n", " / "))
+    freq_df = pd.DataFrame(effect_freq.items(), columns=["부작용", "실제 언급 수"])
+    freq_df["부작용"] = freq_df["부작용"].apply(lambda x: x.replace("\n", " / "))
     freq_df["로그 보정 크기"] = freq_df["실제 언급 수"].apply(lambda x: round(np.log1p(x), 2))
     freq_df = freq_df.sort_values("실제 언급 수", ascending=False).head(10).reset_index(drop=True)
     freq_df.index = freq_df.index + 1
@@ -1197,6 +1197,7 @@ st.markdown("""
 
 with st.spinner("📡 데이터를 불러오는 중입니다…"):
     all_data = get_all_data()
+
 
 # ── 사이드바 ──
 with st.sidebar:
