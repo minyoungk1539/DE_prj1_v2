@@ -470,18 +470,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col_m, col_w = st.columns(2)
-
-with col_m:
-    st.markdown("<div class='drug-header drug-header-mounjaro'>💉 Mounjaro (Tirzepatide)</div>",
-                unsafe_allow_html=True)
-    if filtered_m.empty:
-        st.info("Mounjaro 데이터에 선택된 부작용 데이터가 없습니다.")
-    else:
-        n_m = len(df_m)
-        st.caption(f"총 {n_m:,}건 분석")
-        fig_m = make_fig(filtered_m, STAGE_COLORS_MOUNJARO, "Mounjaro")
-        st.plotly_chart(fig_m, use_container_width=True, config={"displayModeBar": False})
+col_w, col_m = st.columns(2)
 
 with col_w:
     st.markdown("<div class='drug-header drug-header-wegovy'>💉 Wegovy (Semaglutide)</div>",
@@ -493,6 +482,17 @@ with col_w:
         st.caption(f"총 {n_w:,}건 분석")
         fig_w = make_fig(filtered_w, STAGE_COLORS_WEGOVY, "Wegovy")
         st.plotly_chart(fig_w, use_container_width=True, config={"displayModeBar": False})
+
+with col_m:
+    st.markdown("<div class='drug-header drug-header-mounjaro'>💉 Mounjaro (Tirzepatide)</div>",
+                unsafe_allow_html=True)
+    if filtered_m.empty:
+        st.info("Mounjaro 데이터에 선택된 부작용 데이터가 없습니다.")
+    else:
+        n_m = len(df_m)
+        st.caption(f"총 {n_m:,}건 분석")
+        fig_m = make_fig(filtered_m, STAGE_COLORS_MOUNJARO, "Mounjaro")
+        st.plotly_chart(fig_m, use_container_width=True, config={"displayModeBar": False})
 
 
 # ────────────────────────── 상세 수치 표 (약물별) ──────────────────────────
@@ -537,7 +537,7 @@ def render_table(filtered, drug_name):
     width:100%; border-collapse:collapse; table-layout:fixed;
     font-family:'Noto Sans KR', sans-serif; font-size:.82rem; color:#1a2e24;
 }}
-.htbl colgroup col.col-rank  {{ width:40px; }}
+.htbl colgroup col.col-rank  {{ width:58px; }}
 .htbl colgroup col.col-name  {{ width:220px; }}
 .htbl colgroup col.col-num   {{ width:auto; }}
 .htbl thead tr {{ background:#eef7f2; }}
@@ -555,10 +555,15 @@ def render_table(filtered, drug_name):
 }}
 .htbl tbody td:last-child {{ border-right:none; }}
 .htbl thead th:not(:last-child) {{ border-right:1px solid #cce0d6; }}
-.htbl .rank {{
-    font-family:'JetBrains Mono', monospace; color:#5a7a68;
+..htbl .rank {{
+    font-family:'JetBrains Mono', monospace; 
+    color:#5a7a68;
     text-align:center;
-    border-right:1px solid #e0ede6 !important; font-weight:400;
+    border-right:1px solid #e0ede6 !important; 
+    font-weight:400;
+    min-width:58px;
+    padding-left:10px;
+    padding-right:10px;
 }}
 .htbl .se-name {{ color:#1a2e24; font-weight:500; border-right:1px solid #e0ede6 !important; }}
 .htbl .num {{
@@ -595,8 +600,10 @@ def render_table(filtered, drug_name):
 
 st.markdown("<div class='section-title'>📝 약물별 단계별 상세 수치</div>", unsafe_allow_html=True)
 
-tbl_m, tbl_w = st.columns(2)
-with tbl_m:
-    render_table(filtered_m, "Mounjaro")
+tbl_w, tbl_m = st.columns(2)
+
 with tbl_w:
     render_table(filtered_w, "Wegovy")
+
+with tbl_m:
+    render_table(filtered_m, "Mounjaro")
