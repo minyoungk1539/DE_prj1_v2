@@ -1,6 +1,18 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
+
+FILE_IDS = {
+    "SideEffect_Analysis_Data.csv":         "1uXOLCoMnDnq_OyXjVS6-WD74nCslIb80",
+}
+
+def download_if_needed(filename, file_id):
+    if not os.path.exists(filename):
+        gdown.download(f"https://drive.google.com/uc?id={file_id}", filename, quiet=False)
+
+for fname, fid in FILE_IDS.items():
+    download_if_needed(fname, fid)
 
 st.set_page_config(page_title="복용 단계별 부작용 분포", page_icon="💊", layout="wide")
 
@@ -46,7 +58,20 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] > div {
     background:linear-gradient(90deg,var(--border),transparent);
 }
 
-/* 첫 번째 사진: 라디오 배경색 제거 + 진한 초록 글자 */
+/* 약물 카드 헤더 */
+.drug-header {
+    border-radius:10px; padding:14px 20px; margin-bottom:1rem;
+    font-weight:700; font-size:1rem;
+}
+.drug-header-mounjaro {
+    background:linear-gradient(90deg,#1a4f7a,#2e73b0);
+    color:#fff;
+}
+.drug-header-wegovy {
+    background:linear-gradient(90deg,#2e8b57,#4aad78);
+    color:#fff;
+}
+
 [data-testid="stRadio"] > label {
     color:var(--ewha) !important; font-weight:700 !important; font-size:.85rem !important;
 }
@@ -99,7 +124,6 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] > div {
     font-weight:500; margin-bottom:1rem;
 }
 
-/* 표 제목: 옅은 초록 배경 */
 .table-title-box {
     background:var(--ewha-faint);
     border:1.5px solid var(--border);
@@ -113,9 +137,10 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] > div {
 </style>
 """, unsafe_allow_html=True)
 
+
 @st.cache_data
 def load_data():
-    df = pd.read_csv("C:\\Users\\kim20\\Downloads\\SideEffect_Analysis_Data.csv")
+    df = pd.read_csv("SideEffect_Analysis_Data.csv")
     df = df[(df["author"] != "[deleted]") & (df["side_effect"] != "unknown")]
 
     def assign_stage(m):
@@ -127,23 +152,48 @@ def load_data():
             return "Long-term"
 
     df["Stage"] = df["rel_month"].apply(assign_stage)
+
+    # drug 컬럼 정규화: 소문자 + strip
+    df["drug_clean"] = df["drug"].str.lower().str.strip()
     return df
+
 
 df = load_data()
 
-STAGE_ORDER = ["Early-term", "Mid-term", "Long-term"]
+# 약물 목록 확인 후 Mounjaro / Wegovy 분리
+DRUG_MOUNJARO_KEYS = ["mounjaro", "tirzepatide"]
+DRUG_WEGOVY_KEYS   = ["wegovy", "semaglutide", "ozempic"]
+
+def classify_drug(d):
+    d = str(d).lower().strip()
+    if any(k in d for k in DRUG_MOUNJARO_KEYS):
+        return "Mounjaro"
+    elif any(k in d for k in DRUG_WEGOVY_KEYS):
+        return "Wegovy"
+    else:
+        return "Other"
+
+df["Drug"] = df["drug_clean"].apply(classify_drug)
+
+STAGE_ORDER  = ["Early-term", "Mid-term", "Long-term"]
 STAGE_LABELS = {
     "Early-term": "Early-term (0–3M)",
-    "Mid-term": "Mid-term (3–6M)",
-    "Long-term": "Long-term (6M+)",
-}
-STAGE_COLORS = {
-    "Early-term": "#1a4f7a",
-    "Mid-term": "#2e8b57",
-    "Long-term": "#6db88a",
+    "Mid-term":   "Mid-term (3–6M)",
+    "Long-term":  "Long-term (6M+)",
 }
 
-# 막대그래프/표 표시용: 한글명 / 영문명
+# Mounjaro: 파란 계열 / Wegovy: 초록 계열
+STAGE_COLORS_MOUNJARO = {
+    "Early-term": "#1a4f7a",
+    "Mid-term":   "#2874b5",
+    "Long-term":  "#6db4e8",
+}
+STAGE_COLORS_WEGOVY = {
+    "Early-term": "#1a5c38",
+    "Mid-term":   "#2e8b57",
+    "Long-term":  "#6db88a",
+}
+
 SE_MAP = {
     "appetite_loss": "식욕감소 / Appetite Loss",
     "nausea": "오심/메스꺼움 / Nausea",
@@ -205,13 +255,12 @@ SE_MAP = {
     "식욕감소": "식욕감소 / Appetite Loss",
 }
 
+
 def se_display_name(x) -> str:
     if pd.isna(x):
         return ""
-
     raw = str(x).strip()
     key = raw.lower()
-
     if key in SE_MAP:
         return SE_MAP[key].replace("\n", " / ")
     if raw in SE_MAP:
@@ -220,24 +269,60 @@ def se_display_name(x) -> str:
         return raw
     if "\n" in raw:
         return raw.replace("\n", " / ")
-
     return raw.replace("_", " ").title()
 
+
+# ────────────────────────── Hero ──────────────────────────
 st.markdown("""
 <div class='page-hero'>
-    <div class='page-hero-eyebrow'>Pharmacovigilance · Distribution of Side Effects by Treatment Stage </div>
-    <div class='page-hero-title'>📊 복용 단계별 부작용 분포 분석</div>
-    <div class='page-hero-sub'>복용 기간에 따른 주요 부작용 비중 변화를 비교합니다. 사이드바에서 항목을 선택해 차트를 정리하세요.</div>
+    <div class='page-hero-eyebrow'>Pharmacovigilance · Distribution of Side Effects by Drug &amp; Treatment Stage</div>
+    <div class='page-hero-title'>📊 약물별 · 복용 단계별 부작용 분포 분석</div>
+    <div class='page-hero-sub'>Mounjaro와 Wegovy의 복용 기간에 따른 주요 부작용 비중 변화를 각각 비교합니다.</div>
 </div>
 """, unsafe_allow_html=True)
 
+# ────────────────────────── 데이터 분포 확인 ──────────────────────────
+df_m = df[df["Drug"] == "Mounjaro"]
+df_w = df[df["Drug"] == "Wegovy"]
+
+other_cnt = len(df[df["Drug"] == "Other"])
+st.markdown(f"""
+<style>
+.stat-card {{
+    background:#fff; border:1.5px solid var(--border);
+    border-left:4px solid var(--ewha);
+    border-radius:var(--radius-md); padding:14px 20px;
+    margin-bottom:1rem;
+}}
+.stat-label {{
+    font-size:.78rem; font-weight:700; color:#00462A;
+    letter-spacing:.03em; margin-bottom:4px;
+}}
+.stat-value {{
+    font-family:'JetBrains Mono', monospace;
+    font-size:.95rem; font-weight:500; color:#5a7a68;
+}}
+</style>
+<div style='display:flex; gap:1rem; margin-bottom:1rem;'>
+  <div class='stat-card' style='flex:1'>
+    <div class='stat-label'>Mounjaro 전체 언급 수</div>
+    <div class='stat-value'>{len(df_m):,}건</div>
+  </div>
+  <div class='stat-card' style='flex:1'>
+    <div class='stat-label'>Wegovy 전체 언급 수</div>
+    <div class='stat-value'>{len(df_w):,}건</div>
+  </div>
+  
+</div>
+""", unsafe_allow_html=True)
+
+# ────────────────────────── Sidebar ──────────────────────────
 with st.sidebar:
     st.markdown("""
     <div style='font-size:1.05rem;font-weight:700;color:#d4ede2;margin:1rem 0 0.3rem'>⚙️ 분석 설정</div>
     <div style='height:1px;background:rgba(255,255,255,0.1);margin-bottom:1.2rem'></div>
     """, unsafe_allow_html=True)
 
-    # 두 번째 사진 요청 반영: '상위 부작용 풀 크기' 슬라이더 자체 제거
     top_n = 15
 
     st.markdown("""
@@ -247,9 +332,10 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    top_pool = df["side_effect"].value_counts().head(top_n).index.tolist()
-    pool_df = df[df["side_effect"].isin(top_pool)]
-    sorted_pool = pool_df["side_effect"].value_counts().index.tolist()
+    # 전체(Mounjaro+Wegovy) 기준 상위 N개 풀
+    pool_df_all = df[df["Drug"].isin(["Mounjaro", "Wegovy"])]
+    top_pool    = pool_df_all["side_effect"].value_counts().head(top_n).index.tolist()
+    sorted_pool = pool_df_all[pool_df_all["side_effect"].isin(top_pool)]["side_effect"].value_counts().index.tolist()
 
     if "selected_ses" not in st.session_state:
         st.session_state["selected_ses"] = sorted_pool.copy()
@@ -273,15 +359,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-stage_totals = df.groupby("Stage").size().reset_index(name="stage_total")
-all_counts = (
-    pool_df.groupby(["Stage", "side_effect"])
-    .size()
-    .reset_index(name="count")
-    .merge(stage_totals, on="Stage")
-)
-all_counts["percentage"] = all_counts["count"] / all_counts["stage_total"] * 100
-
+# ────────────────────────── Y축 기준 선택 ──────────────────────────
 st.markdown("<div class='section-title'>📐 비율 기준 선택</div>", unsafe_allow_html=True)
 
 pct_mode = st.radio(
@@ -289,10 +367,6 @@ pct_mode = st.radio(
     ["전체 데이터 기준 비율 (%)", "선택 항목 기준 상대 비율 (%)"],
     index=0,
     horizontal=True,
-    help=(
-        "**전체 데이터 기준 비율**: 해당 단계의 모든 언급 중 이 부작용의 비중\n\n"
-        "**선택 항목 기준 상대 비율**: 선택 항목끼리의 상대 비중 (압도적 항목 제거 후 비교에 유용)"
-    ),
     label_visibility="collapsed",
 )
 
@@ -300,185 +374,212 @@ if not selected_ses:
     st.warning("⚠️ 사이드바에서 부작용을 1개 이상 선택해주세요.")
     st.stop()
 
-filtered = all_counts[all_counts["side_effect"].isin(selected_ses)].copy()
-
-if pct_mode == "선택 항목 합계 대비 (%)":
-    sel_totals = filtered.groupby("Stage")["count"].sum().reset_index(name="sel_total")
-    filtered = filtered.merge(sel_totals, on="Stage")
-    filtered["percentage"] = filtered["count"] / filtered["sel_total"] * 100
-    yaxis_label = "선택 항목 합계 대비 비율 (%)"
-    banner_msg = "선택한 부작용들의 합계를 100%로 두고 각 항목의 상대 비중을 표시합니다."
-else:
+if pct_mode == "전체 데이터 기준 비율 (%)":
     yaxis_label = "해당 단계 전체 언급 대비 비율 (%)"
-    banner_msg = "각 복용 단계의 총 언급 수 대비 해당 부작용의 비중을 표시합니다."
 
-st.markdown(f"<div class='info-banner'>📌 {banner_msg}</div>", unsafe_allow_html=True)
+else:
+    yaxis_label = "선택 항목 합계 대비 비율 (%)"
+    banner_msg  = "선택한 부작용들의 합계를 100%로 두고 각 항목의 상대 비중을 표시합니다."
 
-order_base = (
-    filtered.groupby("side_effect")["count"]
-    .sum()
-    .sort_values(ascending=False)
-    .index.tolist()
-)
-filtered["side_effect_label"] = filtered["side_effect"].apply(se_display_name)
-order_base_label = [se_display_name(se) for se in order_base]
 
+
+# ────────────────────────── 공통 집계 함수 ──────────────────────────
+def build_chart_data(drug_df: pd.DataFrame, selected: list[str], mode: str):
+    """선택된 부작용 + 단계별 비율 집계"""
+    pool_filtered = drug_df[drug_df["side_effect"].isin(top_pool)]
+    stage_totals  = drug_df.groupby("Stage").size().reset_index(name="stage_total")
+    counts = (
+        pool_filtered.groupby(["Stage", "side_effect"])
+        .size()
+        .reset_index(name="count")
+        .merge(stage_totals, on="Stage")
+    )
+    counts["percentage"] = counts["count"] / counts["stage_total"] * 100
+
+    filtered = counts[counts["side_effect"].isin(selected)].copy()
+
+    if mode == "선택 항목 기준 상대 비율 (%)":
+        sel_totals = filtered.groupby("Stage")["count"].sum().reset_index(name="sel_total")
+        filtered   = filtered.merge(sel_totals, on="Stage")
+        filtered["percentage"] = filtered["count"] / filtered["sel_total"] * 100
+
+    filtered["side_effect_label"] = filtered["side_effect"].apply(se_display_name)
+    filtered["Stage_label"]       = filtered["Stage"].map(STAGE_LABELS)
+    return filtered
+
+
+def make_fig(filtered, stage_colors, title_suffix):
+    order_base       = (filtered.groupby("side_effect_label")["count"].sum()
+                        .sort_values(ascending=False).index.tolist())
+    stage_label_order = [STAGE_LABELS[s] for s in STAGE_ORDER]
+    stage_color_label = {STAGE_LABELS[k]: v for k, v in stage_colors.items()}
+
+    fig = px.bar(
+        filtered,
+        x="side_effect_label",
+        y="percentage",
+        color="Stage_label",
+        barmode="group",
+        text_auto=".1f",
+        category_orders={"Stage_label": stage_label_order, "side_effect_label": order_base},
+        color_discrete_map=stage_color_label,
+        template="plotly_white",
+        labels={"Stage_label": "복용 단계", "side_effect_label": "부작용 항목"},
+        title=title_suffix,
+    )
+    fig.update_layout(
+        xaxis_title="부작용 항목",
+        yaxis_title=yaxis_label,
+        legend_title_text="복용 단계",
+        legend_title_font=dict(color="#00462A", size=12, family="Noto Sans KR"),
+        height=520,
+        margin=dict(t=50, b=120, l=65, r=20),
+        font=dict(family="Noto Sans KR", size=11, color="#1a2e24"),
+        plot_bgcolor="#f9fcfa",
+        paper_bgcolor="#ffffff",
+        title_font=dict(size=14, color="#1a2e24", family="Noto Sans KR"),
+        xaxis=dict(tickfont=dict(color="#1a2e24", size=9), title_font=dict(color="#1a2e24")),
+        yaxis=dict(
+            tickfont=dict(color="#1a2e24", size=10),
+            title_font=dict(color="#1a2e24"),
+            gridcolor="#e8f3ed",
+        ),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
+            bgcolor="rgba(255,255,255,0.9)", bordercolor="#cce0d6", borderwidth=1,
+            font=dict(color="#1a2e24", size=11),
+        ),
+    )
+    fig.update_traces(
+        textposition="outside",
+        textfont=dict(color="#1a2e24", size=10, family="JetBrains Mono"),
+        marker_line_color="white", marker_line_width=1.2,
+        opacity=0.93, cliponaxis=False,
+    )
+    fig.update_xaxes(tickangle=-35)
+    return fig
+
+
+# ────────────────────────── 집계 ──────────────────────────
+filtered_m = build_chart_data(df_m, selected_ses, pct_mode)
+filtered_w = build_chart_data(df_w, selected_ses, pct_mode)
+
+# ────────────────────────── 차트 (2열 나란히) ──────────────────────────
 st.markdown(
-    f"<div class='section-title'>📈 선택 부작용 {len(selected_ses)}개 · 복용 단계별 비중 비교</div>",
+    f"<div class='section-title'>📈 선택 부작용 {len(selected_ses)}개 · 약물별 복용 단계 비교</div>",
     unsafe_allow_html=True,
 )
 
-filtered["Stage_label"] = filtered["Stage"].map(STAGE_LABELS)
-stage_label_order = [STAGE_LABELS[s] for s in STAGE_ORDER]
-stage_color_label = {STAGE_LABELS[k]: v for k, v in STAGE_COLORS.items()}
+col_m, col_w = st.columns(2)
 
-fig = px.bar(
-    filtered,
-    x="side_effect_label",
-    y="percentage",
-    color="Stage_label",
-    barmode="group",
-    text_auto=".1f",
-    category_orders={
-        "Stage_label": stage_label_order,
-        "side_effect_label": order_base_label,
-    },
-    color_discrete_map=stage_color_label,
-    template="plotly_white",
-    labels={"Stage_label": "복용 단계", "side_effect_label": "부작용 항목"},
-)
+with col_m:
+    st.markdown("<div class='drug-header drug-header-mounjaro'>💉 Mounjaro (Tirzepatide)</div>",
+                unsafe_allow_html=True)
+    if filtered_m.empty:
+        st.info("Mounjaro 데이터에 선택된 부작용 데이터가 없습니다.")
+    else:
+        n_m = len(df_m)
+        st.caption(f"총 {n_m:,}건 분석")
+        fig_m = make_fig(filtered_m, STAGE_COLORS_MOUNJARO, "Mounjaro")
+        st.plotly_chart(fig_m, use_container_width=True, config={"displayModeBar": False})
 
-fig.update_layout(
-    xaxis_title="부작용 항목",
-    yaxis_title=yaxis_label,
-    # 세 번째 사진 요청 반영: 복용 단계 글자색 진한 초록
-    legend_title_text="복용 단계",
-    legend_title_font=dict(color="#00462A", size=13, family="Noto Sans KR"),
-    height=580,
-    margin=dict(t=30, b=130, l=65, r=20),
-    font=dict(family="Noto Sans KR", size=12, color="#1a2e24"),
-    plot_bgcolor="#f9fcfa",
-    paper_bgcolor="#ffffff",
-    xaxis=dict(tickfont=dict(color="#1a2e24", size=10), title_font=dict(color="#1a2e24")),
-    yaxis=dict(
-        tickfont=dict(color="#1a2e24", size=11),
-        title_font=dict(color="#1a2e24"),
-        gridcolor="#e8f3ed",
-    ),
-    legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.01,
-        xanchor="right",
-        x=1,
-        bgcolor="rgba(255,255,255,0.9)",
-        bordercolor="#cce0d6",
-        borderwidth=1,
-        font=dict(color="#1a2e24", size=12),
-    ),
-)
+with col_w:
+    st.markdown("<div class='drug-header drug-header-wegovy'>💉 Wegovy (Semaglutide)</div>",
+                unsafe_allow_html=True)
+    if filtered_w.empty:
+        st.info("Wegovy 데이터에 선택된 부작용 데이터가 없습니다.")
+    else:
+        n_w = len(df_w)
+        st.caption(f"총 {n_w:,}건 분석")
+        fig_w = make_fig(filtered_w, STAGE_COLORS_WEGOVY, "Wegovy")
+        st.plotly_chart(fig_w, use_container_width=True, config={"displayModeBar": False})
 
-fig.update_traces(
-    textposition="outside",
-    textfont=dict(color="#1a2e24", size=11, family="JetBrains Mono"),
-    marker_line_color="white",
-    marker_line_width=1.2,
-    opacity=0.93,
-    cliponaxis=False,
-)
-fig.update_xaxes(tickangle=-35)
 
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+# ────────────────────────── 상세 수치 표 (약물별) ──────────────────────────
+def render_table(filtered, drug_name):
+    if filtered.empty:
+        return
 
-# 단계별 상세수치 확인 표: expander 제거, 항상 고정 표시
-st.markdown("<div class='table-title-box'>📝 단계별 상세 수치 확인</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='table-title-box'>📝 {drug_name} · 단계별 상세 수치</div>",
+                unsafe_allow_html=True)
 
-pivot_df = (
-    filtered.pivot(index="side_effect_label", columns="Stage", values="percentage")
-    .reindex(columns=STAGE_ORDER)
-    .fillna(0)
-    .round(2)
-)
-
-pivot_df = pivot_df.loc[pivot_df.sum(axis=1).sort_values(ascending=False).index]
-
-col_headers = "".join(
-    f"<th class='num-hd'>{STAGE_LABELS[c]}</th>"
-    for c in pivot_df.columns
-)
-
-rows_html = ""
-for i, (idx, row) in enumerate(pivot_df.iterrows(), 1):
-    cells = "".join(f"<td class='num'>{v:.2f}%</td>" for v in row)
-    rows_html += (
-        f"<tr>"
-        f"<td class='rank'>{i}</td>"
-        f"<td class='se-name'>{idx}</td>"
-        f"{cells}"
-        f"</tr>"
+    pivot_df = (
+        filtered.pivot(index="side_effect_label", columns="Stage", values="percentage")
+        .reindex(columns=STAGE_ORDER)
+        .fillna(0)
+        .round(2)
     )
+    pivot_df = pivot_df.loc[pivot_df.sum(axis=1).sort_values(ascending=False).index]
 
-st.markdown(f"""
+    col_headers = "".join(
+        f"<th class='num-hd'>{STAGE_LABELS[c]}</th>"
+        for c in pivot_df.columns if c in STAGE_LABELS
+    )
+    rows_html = ""
+    for i, (idx, row) in enumerate(pivot_df.iterrows(), 1):
+        cells = "".join(f"<td class='num'>{v:.2f}%</td>" for v in row)
+        rows_html += (
+            f"<tr>"
+            f"<td class='rank'>{i}</td>"
+            f"<td class='se-name'>{idx}</td>"
+            f"{cells}"
+            f"</tr>"
+        )
+
+    st.markdown(f"""
 <style>
 .htbl-wrap {{
-    background:#fff;
-    border-radius:0 0 12px 12px;
-    overflow:hidden;
-    border:1.5px solid #cce0d6;
-    border-top:none;
-    margin-bottom:1rem;
-    box-shadow:var(--shadow-sm);
+    background:#fff; border-radius:0 0 12px 12px; overflow:hidden;
+    border:1.5px solid #cce0d6; border-top:none;
+    margin-bottom:1rem; box-shadow:var(--shadow-sm);
 }}
 .htbl {{
-    width:100%;
-    border-collapse:collapse;
-    font-family:'Noto Sans KR', sans-serif;
-    font-size:.82rem;
-    color:#1a2e24;
+    width:100%; border-collapse:collapse; table-layout:fixed;
+    font-family:'Noto Sans KR', sans-serif; font-size:.82rem; color:#1a2e24;
 }}
+.htbl colgroup col.col-rank  {{ width:40px; }}
+.htbl colgroup col.col-name  {{ width:220px; }}
+.htbl colgroup col.col-num   {{ width:auto; }}
 .htbl thead tr {{ background:#eef7f2; }}
 .htbl thead th {{
-    padding:11px 18px;
-    font-size:.68rem;
-    font-weight:700;
-    letter-spacing:.1em;
-    text-transform:uppercase;
-    color:#00462A;
-    border-bottom:2px solid #cce0d6;
-    white-space:nowrap;
+    padding:9px 14px; font-size:.67rem; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase; color:#00462A;
+    border-bottom:2px solid #cce0d6; white-space:nowrap;
 }}
 .htbl thead th.num-hd {{ text-align:right; }}
 .htbl tbody tr:nth-child(even) {{ background:#f7fbf9; }}
 .htbl tbody tr:hover {{ background:#eef7f2; }}
 .htbl tbody td {{
-    padding:9px 18px;
-    border-bottom:1px solid #e8f3ed;
-    border-right:1px solid #e0ede6;
+    padding:7px 14px; border-bottom:1px solid #e8f3ed;
+    border-right:1px solid #e0ede6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }}
 .htbl tbody td:last-child {{ border-right:none; }}
 .htbl thead th:not(:last-child) {{ border-right:1px solid #cce0d6; }}
 .htbl .rank {{
-    font-family:'JetBrains Mono', monospace;
-    color:#5a7a68;
+    font-family:'JetBrains Mono', monospace; color:#5a7a68;
     text-align:center;
-    width:32px;
-    border-right:1px solid #e0ede6 !important;
-    font-weight:400;
+    border-right:1px solid #e0ede6 !important; font-weight:400;
 }}
-.htbl .se-name {{
-    color:#1a2e24;
-    font-weight:500;
-    border-right:1px solid #e0ede6 !important;
-}}
+.htbl .se-name {{ color:#1a2e24; font-weight:500; border-right:1px solid #e0ede6 !important; }}
 .htbl .num {{
-    font-family:'JetBrains Mono', monospace;
-    color:#00462A;
-    font-weight:400;
-    text-align:right;
+    font-family:'JetBrains Mono', monospace; color:#00462A;
+    font-weight:400; text-align:right;
+}}
+/* 탭 글자 진한 초록 */
+[data-testid="stTabs"] button[role="tab"] {{
+    color:#00462A !important; font-weight:600 !important;
+}}
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{
+    color:#00462A !important; font-weight:700 !important;
 }}
 </style>
 <div class='htbl-wrap'>
   <table class='htbl'>
+    <colgroup>
+      <col class='col-rank'/>
+      <col class='col-name'/>
+      <col class='col-num'/><col class='col-num'/><col class='col-num'/>
+    </colgroup>
     <thead>
       <tr>
         <th style='text-align:center'>#</th>
@@ -490,3 +591,12 @@ st.markdown(f"""
   </table>
 </div>
 """, unsafe_allow_html=True)
+
+
+st.markdown("<div class='section-title'>📝 약물별 단계별 상세 수치</div>", unsafe_allow_html=True)
+
+tbl_m, tbl_w = st.columns(2)
+with tbl_m:
+    render_table(filtered_m, "Mounjaro")
+with tbl_w:
+    render_table(filtered_w, "Wegovy")
