@@ -409,53 +409,77 @@ def build_chart_data(drug_df: pd.DataFrame, selected: list[str], mode: str):
     return filtered
 
 
+
+INCREASING_SES = {"skin_changes", "hair_loss", "gallbladder_disease"}
+
+import plotly.colors as pc
+
+def hex_to_rgba(hex_color, alpha):
+    r, g, b = pc.hex_to_rgb(hex_color)
+    return f"rgba({r},{g},{b},{alpha})"
+
 def make_fig(filtered, stage_colors, title_suffix):
-    order_base       = (filtered.groupby("side_effect_label")["count"].sum()
-                        .sort_values(ascending=False).index.tolist())
+    order_base = (filtered.groupby("side_effect_label")["count"]
+                  .sum().sort_values(ascending=False).index.tolist())
     stage_label_order = [STAGE_LABELS[s] for s in STAGE_ORDER]
-    stage_color_label = {STAGE_LABELS[k]: v for k, v in stage_colors.items()}
+
+    inc_labels = {se_display_name(s) for s in INCREASING_SES}
+    filtered = filtered.copy()
 
     fig = px.bar(
         filtered,
-        x="side_effect_label",
-        y="percentage",
-        color="Stage_label",
-        barmode="group",
+        x="side_effect_label", y="percentage",
+        color="Stage_label", barmode="group",
         text_auto=".1f",
-        category_orders={"Stage_label": stage_label_order, "side_effect_label": order_base},
-        color_discrete_map=stage_color_label,
+        category_orders={"Stage_label": stage_label_order,
+                         "side_effect_label": order_base},
         template="plotly_white",
-        labels={"Stage_label": "복용 기간", "side_effect_label": "부작용 항목"},
         title=title_suffix,
     )
+
+    # 증가 항목: 원래 색 / 일반 항목: 원래 색에서 채도만 낮춤
+    for trace in fig.data:
+        stage_key = None
+        for s in STAGE_ORDER:
+            if STAGE_LABELS[s] == trace.name:
+                stage_key = s; break
+        if not stage_key: continue
+
+        normal_color = stage_colors[stage_key]
+        dim_color = hex_to_rgba(normal_color, 0.45)  # 채도 낮춤
+
+        colors = [
+            normal_color if x in inc_labels else dim_color
+            for x in trace.x
+        ]
+        trace.update(marker_color=colors,
+                     marker_line_color="white",
+                     marker_line_width=1.2)
+
     fig.update_layout(
-        xaxis_title="부작용 항목",
-        yaxis_title=yaxis_label,
+        xaxis_title="부작용 항목", yaxis_title=yaxis_label,
         legend_title_text="복용 기간",
         legend_title_font=dict(color="#00462A", size=12, family="Noto Sans KR"),
         height=520,
-        margin=dict(t=50, b=120, l=65, r=20),
+        margin=dict(t=80, b=120, l=65, r=20),
         font=dict(family="Noto Sans KR", size=11, color="#1a2e24"),
-        plot_bgcolor="#f9fcfa",
-        paper_bgcolor="#ffffff",
+        plot_bgcolor="#f9fcfa", paper_bgcolor="#ffffff",
         title_font=dict(size=14, color="#1a2e24", family="Noto Sans KR"),
-        xaxis=dict(tickfont=dict(color="#1a2e24", size=9), title_font=dict(color="#1a2e24")),
-        yaxis=dict(
-            tickfont=dict(color="#1a2e24", size=10),
-            title_font=dict(color="#1a2e24"),
-            gridcolor="#e8f3ed",
-        ),
-        legend=dict(
-            orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
-            bgcolor="rgba(255,255,255,0.9)", bordercolor="#cce0d6", borderwidth=1,
-            font=dict(color="#1a2e24", size=11),
-        ),
+        xaxis=dict(tickfont=dict(color="#1a2e24", size=9),
+                   title_font=dict(color="#1a2e24")),
+        yaxis=dict(tickfont=dict(color="#1a2e24", size=10),
+                   title_font=dict(color="#1a2e24"),
+                   gridcolor="#e8f3ed"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.01,
+                    xanchor="right", x=1,
+                    bgcolor="rgba(255,255,255,0.9)",
+                    bordercolor="#cce0d6", borderwidth=1,
+                    font=dict(color="#1a2e24", size=11)),
     )
     fig.update_traces(
         textposition="outside",
         textfont=dict(color="#1a2e24", size=10, family="JetBrains Mono"),
-        marker_line_color="white", marker_line_width=1.2,
-        opacity=0.93, cliponaxis=False,
+        cliponaxis=False,
     )
     fig.update_xaxes(tickangle=-35)
     return fig
