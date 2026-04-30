@@ -178,9 +178,9 @@ df["Drug"] = df["drug_clean"].apply(classify_drug)
 
 STAGE_ORDER  = ["Early-term", "Mid-term", "Long-term"]
 STAGE_LABELS = {
-    "Early-term": "Early-term (0–3M)",
-    "Mid-term":   "Mid-term (3–6M)",
-    "Long-term":  "Long-term (6M+)",
+    "Early-term": "Early-term",
+    "Mid-term":   "Mid-term",
+    "Long-term":  "Long-term",
 }
 
 # Mounjaro: 파란 계열 / Wegovy: 초록 계열
