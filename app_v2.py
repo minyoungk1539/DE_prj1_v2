@@ -4,6 +4,7 @@ import random
 import ast
 from itertools import combinations
 from collections import defaultdict
+from pymongo import MongoClient
 
 import streamlit as st
 import pandas as pd
@@ -14,8 +15,6 @@ import gdown
 
 # 파일별 Google Drive ID 입력
 FILE_IDS = {
-    "mounjaro_dc_2.jsonl":         "1faTMdwppHkiclwpSSx7au4qg6Zo61Bk6",
-    "wegovy_dc_1.json":             "112zEwo4ju_S_oSD7dmP22dbS3d0WqFFD",
     "Reddit_v8.jsonl":              "1ojqRqcL5GnjY6mCqwztlSPwxtcCeDvgY",
 }
 
@@ -633,24 +632,44 @@ def normalize_se(raw: str) -> str:
 #  4. 데이터 로드
 # ════════════════════════════════════════════════════════════════════
 @st.cache_data(show_spinner=False)
-def load_dc(path: str, drug_label: str) -> list:
-    if not path or not os.path.exists(path):
+def load_cosmos(drug_label: str) -> list:
+    uri = st.secrets["COSMOS_URI"]
+    db_name = st.secrets["COSMOS_DB"]
+
+    if drug_label == "wegovy":
+        collection_name = st.secrets["COLLECTION_w"]
+    elif drug_label == "mounjaro":
+        collection_name = st.secrets["COLLECTION_m"]
+    else:
         return []
-    with open(path, encoding="utf-8") as f:
-        raw = json.load(f)
+
+    client = MongoClient(uri)
+    col = client[db_name][collection_name]
+
     records = []
-    for item in raw:
+
+    cursor = col.find({}, {
+        "_id": 0,
+        "document_id": 1,
+        "author": 1,
+        "side_effects": 1,
+    })
+
+    for item in cursor:
         se_raw = item.get("side_effects", "")
         if not se_raw:
             continue
+
         effects = [normalize_se(e) for e in str(se_raw).split(",") if e.strip()]
         effects = [e for e in effects if e]
+
         if effects:
             records.append({
                 "uid": str(item.get("document_id", item.get("author", ""))),
                 "drug": drug_label,
                 "side_effects": effects,
             })
+
     return records
 
 
@@ -690,16 +709,17 @@ def load_reddit(path: str) -> dict:
 
 @st.cache_data(show_spinner=False)
 def get_all_data() -> dict:
-    dc_w   = load_dc(FILE_PATHS["dc_wegovy"],   "wegovy")
-    dc_m   = load_dc(FILE_PATHS["dc_mounjaro"], "mounjaro") if FILE_PATHS["dc_mounjaro"] else []
+    dc_w = load_cosmos("wegovy")
+    dc_m = load_cosmos("mounjaro")
+
     reddit = load_reddit(FILE_PATHS["reddit"])
+
     return {
-        "dc_wegovy":       dc_w,
-        "dc_mounjaro":     dc_m,
-        "reddit_wegovy":   reddit["wegovy"],
+        "dc_wegovy": dc_w,
+        "dc_mounjaro": dc_m,
+        "reddit_wegovy": reddit["wegovy"],
         "reddit_mounjaro": reddit["mounjaro"],
     }
-
 
 def sample_records(records: list, n: int = SAMPLE_SIZE, seed: int = 42) -> list:
     if len(records) <= n:
