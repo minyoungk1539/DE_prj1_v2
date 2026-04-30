@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+import gdown
 
 FILE_IDS = {
     "SideEffect_Analysis_Data.csv":         "1uXOLCoMnDnq_OyXjVS6-WD74nCslIb80",
