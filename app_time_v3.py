@@ -15,7 +15,7 @@ def download_if_needed(filename, file_id):
 for fname, fid in FILE_IDS.items():
     download_if_needed(fname, fid)
 
-st.set_page_config(page_title="복용 단계별 부작용 분포", page_icon="💊", layout="wide")
+st.set_page_config(page_title="복용 기간별 부작용 분포", page_icon="💊", layout="wide")
 
 st.markdown("""
 <style>
@@ -277,7 +277,7 @@ def se_display_name(x) -> str:
 st.markdown("""
 <div class='page-hero'>
     <div class='page-hero-eyebrow'>Pharmacovigilance · Distribution of Side Effects by Drug &amp; Treatment Stage</div>
-    <div class='page-hero-title'>📊 약물별 · 복용 단계별 부작용 분포 분석</div>
+    <div class='page-hero-title'>📊 약물별 · 복용 기간별 부작용 분포 분석</div>
     <div class='page-hero-sub'>Mounjaro와 Wegovy의 복용 기간에 따른 주요 부작용 비중 변화를 각각 비교합니다.</div>
 </div>
 """, unsafe_allow_html=True)
@@ -376,7 +376,7 @@ if not selected_ses:
     st.stop()
 
 if pct_mode == "전체 데이터 기준 비율 (%)":
-    yaxis_label = "해당 단계 전체 언급 대비 비율 (%)"
+    yaxis_label = "해당 기간 전체 언급 대비 비율 (%)"
 
 else:
     yaxis_label = "선택 항목 합계 대비 비율 (%)"
@@ -386,7 +386,7 @@ else:
 
 # ────────────────────────── 공통 집계 함수 ──────────────────────────
 def build_chart_data(drug_df: pd.DataFrame, selected: list[str], mode: str):
-    """선택된 부작용 + 단계별 비율 집계"""
+    """선택된 부작용 + 기간별 비율 집계"""
     pool_filtered = drug_df[drug_df["side_effect"].isin(top_pool)]
     stage_totals  = drug_df.groupby("Stage").size().reset_index(name="stage_total")
     counts = (
@@ -425,13 +425,13 @@ def make_fig(filtered, stage_colors, title_suffix):
         category_orders={"Stage_label": stage_label_order, "side_effect_label": order_base},
         color_discrete_map=stage_color_label,
         template="plotly_white",
-        labels={"Stage_label": "복용 단계", "side_effect_label": "부작용 항목"},
+        labels={"Stage_label": "복용 기간", "side_effect_label": "부작용 항목"},
         title=title_suffix,
     )
     fig.update_layout(
         xaxis_title="부작용 항목",
         yaxis_title=yaxis_label,
-        legend_title_text="복용 단계",
+        legend_title_text="복용 기간",
         legend_title_font=dict(color="#00462A", size=12, family="Noto Sans KR"),
         height=520,
         margin=dict(t=50, b=120, l=65, r=20),
@@ -467,7 +467,7 @@ filtered_w = build_chart_data(df_w, selected_ses, pct_mode)
 
 # ────────────────────────── 차트 (2열 나란히) ──────────────────────────
 st.markdown(
-    f"<div class='section-title'>📈 선택 부작용 {len(selected_ses)}개 · 약물별 복용 단계 비교</div>",
+    f"<div class='section-title'>📈 선택 부작용 {len(selected_ses)}개 · 약물별 복용 기간 비교</div>",
     unsafe_allow_html=True,
 )
 
@@ -501,7 +501,7 @@ def render_table(filtered, drug_name):
     if filtered.empty:
         return
 
-    st.markdown(f"<div class='table-title-box'>📝 {drug_name} · 단계별 상세 수치</div>",
+    st.markdown(f"<div class='table-title-box'>📝 {drug_name} ·기간별 상세 수치</div>",
                 unsafe_allow_html=True)
 
     pivot_df = (
@@ -599,7 +599,7 @@ def render_table(filtered, drug_name):
 """, unsafe_allow_html=True)
 
 
-st.markdown("<div class='section-title'>📝 약물별 단계별 상세 수치</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>📝 약물별 기간별 상세 수치</div>", unsafe_allow_html=True)
 
 tbl_w, tbl_m = st.columns(2)
 
