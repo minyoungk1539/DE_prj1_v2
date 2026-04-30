@@ -10,6 +10,21 @@ import pandas as pd
 import networkx as nx
 import plotly.graph_objects as go
 import numpy as np
+import gdown
+
+# 파일별 Google Drive ID 입력
+FILE_IDS = {
+    "mounjaro_dc_2.jsonl":         "1faTMdwppHkiclwpSSx7au4qg6Zo61Bk6",
+    "wegovy_dc_1.json":             "112zEwo4ju_S_oSD7dmP22dbS3d0WqFFD",
+    "Reddit_v8.jsonl":              "1ojqRqcL5GnjY6mCqwztlSPwxtcCeDvgY",
+}
+
+def download_if_needed(filename, file_id):
+    if not os.path.exists(filename):
+        gdown.download(f"https://drive.google.com/uc?id={file_id}", filename, quiet=False)
+
+for fname, fid in FILE_IDS.items():
+    download_if_needed(fname, fid)
 
 # ════════════════════════════════════════════════════════════════════
 #  0. 페이지 설정
@@ -534,9 +549,9 @@ def get_path(key, fallback=""):
         return fallback
 
 FILE_PATHS = {
-    "dc_wegovy":   get_path("DC_WEGOVY_PATH",   "wegovy_dc_1.json"),
-    "dc_mounjaro": get_path("DC_MOUNJARO_PATH", "mounjaro_dc_1.json"),
-    "reddit":      get_path("REDDIT_PATH",      "Reddit_v8.jsonl"),
+    "dc_wegovy":   "wegovy_dc_1.json",
+    "dc_mounjaro": "mounjaro_dc_1.json",
+    "reddit":      "Reddit_v8.jsonl",
 }
 SAMPLE_SIZE = 30_000
 
